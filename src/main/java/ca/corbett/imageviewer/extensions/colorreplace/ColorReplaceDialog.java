@@ -193,6 +193,7 @@ public class ColorReplaceDialog extends JDialog {
 
         strictnessField = new ComboField<>("Strictness:", Arrays.asList(IColorReplace.Strictness.values()), 0, false);
         strictnessField.setHelpText("Controls how closely the replacement color must match the original color.");
+        strictnessField.addValueChangedListener(_ -> onFieldValueChanged());
         formPanel.add(strictnessField);
 
         PanelField wrapper = new PanelField(new GridBagLayout());
