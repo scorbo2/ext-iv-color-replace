@@ -1,0 +1,9 @@
+{
+  "name": "Color replace",
+  "author": "steve@corbett.ca",
+  "version": "3.3.0",
+  "targetAppName": "ImageViewer",
+  "targetAppVersion": "3.3",
+  "shortDescription": "Intelligently replaces a color in the image with another color.",
+  "longDescription": "Brings up a dialog for the selected image that allows you to select a color within that image and replace it with another color intelligently."
+}
