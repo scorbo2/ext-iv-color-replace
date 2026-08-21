@@ -12,6 +12,7 @@ import ca.corbett.forms.fields.ComboField;
 import ca.corbett.forms.fields.LabelField;
 import ca.corbett.forms.fields.PanelField;
 import ca.corbett.imageviewer.extensions.ImageViewerExtensionManager;
+import ca.corbett.imageviewer.extensions.colorreplace.impl.NaiveColorReplace;
 import ca.corbett.imageviewer.ui.MainWindow;
 
 import javax.swing.BorderFactory;
@@ -253,13 +254,29 @@ public class ColorReplaceDialog extends JDialog {
             g.drawImage(originalImage, 0, 0, null);
             Color srcColor = sourceColorField.getColor();
             Color destColor = replacementColorField.getColor();
-            // TODO strictness
-            // TODO replace color
-            imagePanel.setImage(previewBuffer);
+            IColorReplace.Strictness strictness = strictnessField.getSelectedItem();
+
+            // Special case "exact" strictness and hand it to our naive implementation:
+            if (strictness == IColorReplace.Strictness.EXACT) {
+                new NaiveColorReplace().replace(previewBuffer, srcColor, destColor, strictness, this::replaceComplete);
+            }
+            else {
+                // TODO create an instance of the actual color replacement handler
+                // TODO invoke it here:
+                // replacer.replace(previewBuffer, srcColor, destColor, strictness, this::replaceComplete);
+
+                // TODO remove this placeholder log:
+                getMessageUtil().getLogger().info(strictness + " color replacement is not yet implemented.");
+            }
         }
         finally {
             g.dispose();
         }
+    }
+
+    private void replaceComplete(long runTimeMillis) {
+        getMessageUtil().getLogger().log(Level.INFO, "Color replace completed in {0} ms", runTimeMillis);
+        imagePanel.setImage(previewBuffer);
     }
 
     /**

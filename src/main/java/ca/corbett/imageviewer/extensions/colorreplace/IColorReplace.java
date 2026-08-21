@@ -24,10 +24,11 @@ public interface IColorReplace {
 
     /**
      * Will be invoked when the color replacement operation is complete.
+     * The total run time of the operation in milliseconds will be provided as a parameter.
      */
     @FunctionalInterface
     interface OnComplete {
-        void onComplete();
+        void onComplete(long runTimeMillis);
     }
 
     /**
