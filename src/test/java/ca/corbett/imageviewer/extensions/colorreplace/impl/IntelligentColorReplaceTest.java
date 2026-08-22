@@ -118,8 +118,7 @@ class IntelligentColorReplaceTest {
     @Test
     void replace_washedOutHighlight_looseStrictness_becomesPaleShadeOfTarget() {
         // GIVEN a saturated red source (s=1.0), a washed-out red highlight
-        // (s~=0.498, v=1.0), plus a white and a mid-gray distractor
-        BufferedImage image = row(0xFFFFFF00, 0xFFFF8080, 0xFF00FFFF, 0xFF808080);
+        BufferedImage image = row(0xFFFFFFFF, 0xFFFF8080, 0xFF00FFFF, 0xFF808080);
         Color source = new Color(255, 0, 0);
         Color target = new Color(0, 0, 255);
 
