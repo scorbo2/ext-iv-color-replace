@@ -199,8 +199,10 @@ public class IntelligentColorReplace implements IColorReplace {
         float hueWeight = Math.min(pixel[1], source[1]);
         if (hueWeight <= ACHROMATIC_EPSILON) {
             // At least one color is effectively achromatic, so hue carries no
-            // information; the saturation/brightness deviations are the whole test.
-            return true;
+            // information; match is based on saturation/brightness only.
+            float score = squared(dSat / tolerances.satTol())
+                    + squared(dVal / tolerances.valTol());
+            return score <= 1.0f;
         }
 
         float weightedHueDiff = circularHueDiff(pixel[0], source[0]) * hueWeight;
