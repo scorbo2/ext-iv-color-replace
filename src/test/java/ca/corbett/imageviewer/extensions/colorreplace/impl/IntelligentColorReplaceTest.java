@@ -129,7 +129,7 @@ class IntelligentColorReplaceTest {
         // saturation relative to the source (0.498) is applied to the target's
         // chroma at full brightness -> (128, 128, 255). The achromatic
         // distractors differ by a whole saturation point and are left alone.
-        assertEquals(0xFFFFFF00, out[0], "white should not match a saturated source");
+        assertEquals(0xFFFFFFFF, out[0], "white should not match a saturated source");
         assertEquals(0x80, (out[1] >> 16) & 0xFF, 2, "highlight R");
         assertEquals(0x80, (out[1] >> 8) & 0xFF, 2, "highlight G");
         assertEquals(0xFF, out[1] & 0xFF, 2, "highlight B");
