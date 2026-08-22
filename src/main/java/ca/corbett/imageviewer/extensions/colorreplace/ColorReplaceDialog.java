@@ -176,7 +176,7 @@ public class ColorReplaceDialog extends JDialog {
         formPanel.setBorder(BorderFactory.createLoweredBevelBorder());
 
         final int headerSize = 16;
-        formPanel.add(LabelField.createBoldHeaderLabel("Colors:", headerSize));
+        formPanel.add(LabelField.createBoldHeaderLabel("Color Replace:", headerSize));
 
         sourceColorField = new ColorField("Source color:", ColorSelectionType.SOLID);
         sourceColorField.setColor(Color.BLACK);
