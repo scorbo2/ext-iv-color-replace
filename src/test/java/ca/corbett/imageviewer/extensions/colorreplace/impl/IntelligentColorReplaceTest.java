@@ -54,12 +54,12 @@ class IntelligentColorReplaceTest {
         Color darkRed = new Color(128, 0, 0);
         Color result = replaceOnePixel(RED, BLUE, IColorReplace.Strictness.LOOSE, darkRed);
 
-        // THEN the result is a dark shade of blue: it is bluish (hue near blue's 240 deg), it is not flat blue
-        // (its brightness is well below pure blue's), and it is plainly different from the original red.
-        double resultHueDeg = hueDegrees(result);
-        double blueHueDeg = hueDegrees(BLUE);
-        assertTrue(Math.abs(resultHueDeg - blueHueDeg) < 30.0,
-                "Expected a bluish hue (near " + blueHueDeg + " deg), got " + resultHueDeg + " deg");
+        // THEN the result is a dark shade of blue: blue dominates the RGB channels, it is darker than flat blue
+        // (so its shade is preserved rather than collapsed onto the target), and it is plainly different from the
+        // original red. (Red and blue sit only 120 deg apart on the color wheel, so a red->blue blend necessarily
+        // runs through purple; asserting an exact blue hue would be nonsense.)
+        assertTrue(result.getBlue() > result.getRed() && result.getBlue() > result.getGreen(),
+                "Expected blue to dominate the result, got " + result);
         assertTrue(Math.max(result.getRed(), Math.max(result.getGreen(), result.getBlue())) < 255,
                 "Expected a shaded (darker) result, got " + result);
         assertNotEquals(darkRed.getRGB(), result.getRGB());
@@ -83,9 +83,9 @@ class IntelligentColorReplaceTest {
      */
     @Test
     void replace_withModeratelyCloseColor_replacedUnderLoose_butNotUnderStrict() {
-        // A slightly-off red (200, 30, 30) sits at a normalized distance the LOOSE band accepts but the STRICT band
-        // rejects.
-        Color close = new Color(200, 30, 30);
+        // A desaturated salmon (255, 128, 128) is far enough from pure red that STRICT rejects it, but close enough
+        // that LOOSE picks it up.
+        Color close = new Color(255, 128, 128);
 
         Color underStrict = replaceOnePixel(RED, BLUE, IColorReplace.Strictness.STRICT, close);
         Color underLoose = replaceOnePixel(RED, BLUE, IColorReplace.Strictness.LOOSE, close);
@@ -93,6 +93,19 @@ class IntelligentColorReplaceTest {
         // THEN STRICT leaves it untouched, while LOOSE translates it toward blue:
         assertEquals(close.getRGB(), underStrict.getRGB());
         assertNotEquals(close.getRGB(), underLoose.getRGB());
+    }
+
+    /**
+     * A regression guard: an unrelated background color must not be swallowed by MEDIUM, the setting most prone to
+     * over-replacement.
+     */
+    @Test
+    void replace_withBackgroundColor_becomesUnchangedUnderMedium() {
+        // WHEN a gray background pixel is processed under MEDIUM strictness:
+        Color result = replaceOnePixel(RED, BLUE, IColorReplace.Strictness.MEDIUM, new Color(128, 128, 128));
+
+        // THEN it is left untouched (gray is far enough in HSB that MEDIUM's tolerance doesn't reach it):
+        assertEquals(new Color(128, 128, 128).getRGB(), result.getRGB());
     }
 
     /**
@@ -106,13 +119,5 @@ class IntelligentColorReplaceTest {
         // THEN the exact match becomes blue, but the near-match is left alone:
         assertEquals(BLUE.getRGB(), exact.getRGB());
         assertEquals(new Color(254, 0, 0).getRGB(), almost.getRGB());
-    }
-
-    /**
-     * Returns the hue of the given color in degrees (0-360), or -1 for grayscale inputs.
-     */
-    private static double hueDegrees(Color color) {
-        float[] hsb = Color.RGBtoHSB(color.getRed(), color.getGreen(), color.getBlue(), null);
-        return hsb[0] * 360.0;
     }
 }

@@ -17,8 +17,12 @@ import java.awt.image.BufferedImage;
  * a shade that is mostly the target color but still carries a hint of its original tint. This is what lets shades of
  * the source translate into shades of the target, producing smooth, natural-looking transitions.
  * <p>
- * Matching uses a perceptually-weighted Euclidean distance in RGB space. Channels are weighted by human luminance
- * sensitivity (green matters more than blue), and the raw distance is normalized to {@code [0, 1]}. The
+ * Matching measures distance in <em>HSB</em> space rather than RGB. Because a "shade" of a color shares its hue,
+ * grouping by hue (with wraparound, so red sits between violet and orange) keeps all the shades of the source
+ * together while pushing unrelated hues far away. Saturation and value differences then capture how far a shade is
+ * from the pure source color. This separates "shades of the source" from "background" far more cleanly than an RGB
+ * distance can, which keeps the strictness settings from having to thread a fragile narrow window. The raw distance
+ * is weighted (hue dominates; saturation/value describe the shade) and normalized to {@code [0, 1]}. The
  * {@link Strictness} parameter maps to a maximum accepted distance (the tolerance): the stricter the match, the
  * smaller the tolerance, and the fewer pixels are considered "close enough" to be replaced.
  *
@@ -27,25 +31,28 @@ import java.awt.image.BufferedImage;
 public class IntelligentColorReplace implements IColorReplace {
 
     /**
-     * Perceived-luminance weights for the RGB channels (ITU-R BT.601). Green is weighted highest because the human
-     * eye is most sensitive to it.
+     * Relative importance of each HSB component when measuring how far a pixel is from the source color. Hue
+     * dominates because it defines the color family; saturation and value (which describe the shade) matter less,
+     * so lighter/darker versions of the source still match.
      */
-    private static final double R_WEIGHT = 0.299D;
-    private static final double G_WEIGHT = 0.587D;
-    private static final double B_WEIGHT = 0.114D;
+    private static final double HUE_WEIGHT = 1.0D;
+    private static final double SATURATION_WEIGHT = 0.75D;
+    private static final double VALUE_WEIGHT = 0.75D;
 
     /**
-     * Largest possible weighted distance between two colors, used to normalize a raw distance to {@code [0, 1]}.
+     * Largest possible weighted HSB distance, used to normalize a raw distance to {@code [0, 1]}.
      */
     private static final double MAX_NORMALIZED_DISTANCE =
-            Math.sqrt(R_WEIGHT * R_WEIGHT + G_WEIGHT * G_WEIGHT + B_WEIGHT * B_WEIGHT) * 255D;
+            Math.sqrt(HUE_WEIGHT * HUE_WEIGHT + SATURATION_WEIGHT * SATURATION_WEIGHT + VALUE_WEIGHT * VALUE_WEIGHT);
 
     /**
-     * Maximum normalized distance (tolerance) accepted for each strictness level.
+     * Maximum normalized distance (tolerance) accepted for each strictness level. These were calibrated so that
+     * STRICT captures the core shades of a source, MEDIUM also picks up nearby hues (e.g. pink and orange for a red
+     * source) without reaching unrelated background colors, and LOOSE casts a wide net.
      */
-    private static final double STRICT_TOLERANCE = 0.10D;
+    private static final double STRICT_TOLERANCE = 0.20D;
     private static final double MEDIUM_TOLERANCE = 0.30D;
-    private static final double LOOSE_TOLERANCE = 0.60D;
+    private static final double LOOSE_TOLERANCE = 0.50D;
 
     @Override
     public void replace(BufferedImage srcImage, Color srcColor, Color targetColor,
@@ -61,15 +68,23 @@ public class IntelligentColorReplace implements IColorReplace {
 
         final int srcRGB = srcColor.getRGB();
         final int targetRGB = targetColor.getRGB();
-        final int srcR = srcColor.getRed();
-        final int srcG = srcColor.getGreen();
-        final int srcB = srcColor.getBlue();
+
+        // Source color in HSB, computed once. Hue is compared with wraparound, so achromatic sources (gray/black/
+        // white, which report hue 0) still work: they differ from a colored source in saturation/value instead.
+        float[] srcHsb = Color.RGBtoHSB(srcColor.getRed(), srcColor.getGreen(), srcColor.getBlue(), null);
+        final float sh = srcHsb[0];
+        final float ss = srcHsb[1];
+        final float sv = srcHsb[2];
+
         final int tgtR = targetColor.getRed();
         final int tgtG = targetColor.getGreen();
         final int tgtB = targetColor.getBlue();
         final int tgtA = targetColor.getAlpha();
 
         final double tolerance = toleranceFor(strictness);
+
+        // Reused so we don't allocate a fresh array per pixel (this runs on every preview update).
+        float[] pixelHsb = new float[3];
 
         for (int i = 0; i < pixels.length; i++) {
             int rgb = pixels[i];
@@ -81,7 +96,7 @@ public class IntelligentColorReplace implements IColorReplace {
                 continue;
             }
 
-            pixels[i] = replacePixel(rgb, srcR, srcG, srcB, tgtR, tgtG, tgtB, tgtA, tolerance);
+            pixels[i] = replacePixel(rgb, sh, ss, sv, tgtR, tgtG, tgtB, tgtA, tolerance, pixelHsb);
         }
 
         srcImage.setRGB(0, 0, width, height, pixels, 0, width);
@@ -95,23 +110,25 @@ public class IntelligentColorReplace implements IColorReplace {
      * Blends the given pixel toward the target color if it is within the accepted tolerance of the source color.
      *
      * @param rgb       The source pixel, as an ARGB int.
-     * @param srcR      The source color's red channel.
-     * @param srcG      The source color's green channel.
-     * @param srcB      The source color's blue channel.
+     * @param sh        The source color's hue.
+     * @param ss        The source color's saturation.
+     * @param sv        The source color's value (brightness).
      * @param tgtR      The target color's red channel.
      * @param tgtG      The target color's green channel.
      * @param tgtB      The target color's blue channel.
      * @param tgtA      The target color's alpha channel.
      * @param tolerance The maximum normalized distance accepted (see {@link Strictness}).
+     * @param hsb       Reusable scratch array for the pixel's HSB values.
      * @return The replacement pixel, or the original {@code rgb} if it is too far from the source color to replace.
      */
-    private static int replacePixel(int rgb, int srcR, int srcG, int srcB,
-                                    int tgtR, int tgtG, int tgtB, int tgtA, double tolerance) {
+    private static int replacePixel(int rgb, float sh, float ss, float sv,
+                                    int tgtR, int tgtG, int tgtB, int tgtA,
+                                    double tolerance, float[] hsb) {
         int pr = (rgb >> 16) & 0xFF;
         int pg = (rgb >> 8) & 0xFF;
         int pb = rgb & 0xFF;
 
-        double distance = weightedDistance(pr, pg, pb, srcR, srcG, srcB) / MAX_NORMALIZED_DISTANCE;
+        double distance = hsbDistance(pr, pg, pb, sh, ss, sv, hsb);
         // tolerance is never negative, but skip blending entirely when it is 0 (EXACT) to avoid a divide-by-zero
         // in the blend formula below; exact matches are handled by the fast path in replace().
         if (distance > tolerance || tolerance <= 0.0) {
@@ -132,14 +149,25 @@ public class IntelligentColorReplace implements IColorReplace {
     }
 
     /**
-     * Returns the normalized Euclidean distance (in {@code [0, 1]}) between two colors, weighted by human
-     * luminance sensitivity.
+     * Returns the normalized {@code [0, 1]} distance between a pixel and the source color in HSB space. Hue is
+     * compared with wraparound (red sits between violet and orange); saturation and value differences capture how
+     * different a shade is. Achromatic pixels (saturation 0) have an undefined hue, so they are distinguished by
+     * saturation/value instead, which keeps gray/black/white from being mistaken for a colored source. The scratch
+     * array receives the pixel's HSB values to avoid per-pixel allocation.
      */
-    private static double weightedDistance(int r1, int g1, int b1, int r2, int g2, int b2) {
-        double dr = R_WEIGHT * (r1 - r2);
-        double dg = G_WEIGHT * (g1 - g2);
-        double db = B_WEIGHT * (b1 - b2);
-        return Math.sqrt(dr * dr + dg * dg + db * db);
+    private static double hsbDistance(int r, int g, int b, float sh, float ss, float sv, float[] hsb) {
+        Color.RGBtoHSB(r, g, b, hsb);
+        float hd = Math.abs(hsb[0] - sh);
+        hd = Math.min(hd, 1 - hd);   // wraparound: hue is a circle, so the shortest way around wins
+        hd /= 0.5f;                  // normalize wrapped hue diff from [0, 0.5] to [0, 1]
+        float sd = Math.abs(hsb[1] - ss);
+        float vd = Math.abs(hsb[2] - sv);
+
+        double raw = Math.sqrt(
+                (HUE_WEIGHT * hd) * (HUE_WEIGHT * hd)
+                + (SATURATION_WEIGHT * sd) * (SATURATION_WEIGHT * sd)
+                + (VALUE_WEIGHT * vd) * (VALUE_WEIGHT * vd));
+        return raw / MAX_NORMALIZED_DISTANCE;
     }
 
     /**
