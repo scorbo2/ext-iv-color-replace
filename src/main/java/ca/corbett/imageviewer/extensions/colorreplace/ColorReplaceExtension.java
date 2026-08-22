@@ -46,7 +46,7 @@ public class ColorReplaceExtension extends ImageViewerExtension {
                                         ColorReplaceAction.getInstance())
                       .setAllowBlank(true)
                       .setReservedKeyStrokes(AppConfig.RESERVED_KEYSTROKES)
-                      .setHelpText("Show the gradient fill dialog"));
+                                         .setHelpText("Show the color replace dialog"));
 
         return props;
     }

@@ -10,8 +10,6 @@ You can then save the result or discard it and try again.
 
 This extension works with JPEG and PNG images.
 
-NOTE: Not yet functional! This is a work in progress.
-
 ## How do I get it?
 
 ### Option 1: automatic download and install
@@ -49,7 +47,43 @@ cp target/ext-iv-color-replace-3.3.0.jar ~/.ImageViewer/extensions/
 
 ## Okay, it's installed, now how do I use it?
 
-TODO usage notes here.
+1. Open a JPEG or PNG image in ImageViewer.
+2. Launch the dialog via **Edit &gt; Color replace...** (or right-click the
+   image in the thumbnail/file panels, or press the configurable
+   `Ctrl+Shift+R` shortcut).
+3. **Pick the color to replace** - either left click anywhere on the image
+   preview, or click the "Source color" field and choose from the popup color
+   chooser.
+4. **Pick the replacement color** - either right click anywhere on the image
+   preview, or use the "Replacement color" field.
+5. **Choose the strictness level** that controls how closely a pixel must
+   resemble the source color to be replaced:
+
+   | Level  | Behavior |
+   |--------|----------|
+   | EXACT  | Only pixels with the exact source color value (great for 8-bit pixel art). |
+   | STRICT | Pixels very close to the source color. Safest for photographs. |
+   | MEDIUM | Moderately close pixels, including most shades of the source color. |
+   | LOOSE  | Somewhat close pixels - reaches for dark and washed-out shades. Most aggressive. |
+
+   The preview updates live as you change any option.
+6. **Save and close** overwrites the original image file with the result.
+   **Cancel** (or press ESC) discards the edit. Pressing Enter prompts you to
+   save and close.
+
+### How the replacement works
+
+The replacement is done intelligently in HSB (hue / saturation / brightness)
+space: not just the picked color, but *shades of it* are translated into
+shades of the replacement color. A dark shadow in a red car becomes a dark
+shadow in a blue car, and a bright washed-out highlight becomes a bright,
+pale version of the target color - instead of one flat splotch of the target
+color. The stricter the level, the tighter the range of shades that are
+touched.
+
+One known limitation to be aware of: when the *source* color is gray, black or
+white, only brightness can be used to decide what to replace, so expect LOOSE
+replacements of achromatic colors to be aggressive.
 
 ## Notes
 

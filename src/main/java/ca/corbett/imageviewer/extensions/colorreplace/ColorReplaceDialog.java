@@ -12,7 +12,7 @@ import ca.corbett.forms.fields.ComboField;
 import ca.corbett.forms.fields.LabelField;
 import ca.corbett.forms.fields.PanelField;
 import ca.corbett.imageviewer.extensions.ImageViewerExtensionManager;
-import ca.corbett.imageviewer.extensions.colorreplace.impl.NaiveColorReplace;
+import ca.corbett.imageviewer.extensions.colorreplace.impl.IntelligentColorReplace;
 import ca.corbett.imageviewer.ui.MainWindow;
 
 import javax.swing.BorderFactory;
@@ -176,15 +176,15 @@ public class ColorReplaceDialog extends JDialog {
         formPanel.setBorder(BorderFactory.createLoweredBevelBorder());
 
         final int headerSize = 16;
-        formPanel.add(LabelField.createBoldHeaderLabel("Gradient:", headerSize));
+        formPanel.add(LabelField.createBoldHeaderLabel("Colors:", headerSize));
 
-        sourceColorField = new ColorField("Start color:", ColorSelectionType.SOLID);
+        sourceColorField = new ColorField("Source color:", ColorSelectionType.SOLID);
         sourceColorField.setColor(Color.BLACK);
         sourceColorField.addValueChangedListener(_ -> onFieldValueChanged());
         sourceColorField.setHelpText("Left click on the image to select, or choose from the color chooser popup.");
         formPanel.add(sourceColorField);
 
-        replacementColorField = new ColorField("End color:", ColorSelectionType.SOLID);
+        replacementColorField = new ColorField("Replacement color:", ColorSelectionType.SOLID);
         replacementColorField.setColor(new Color(0, 0, 0, 0));
         replacementColorField.addValueChangedListener(_ -> onFieldValueChanged());
         replacementColorField.setHelpText(
@@ -257,18 +257,10 @@ public class ColorReplaceDialog extends JDialog {
             Color destColor = replacementColorField.getColor();
             IColorReplace.Strictness strictness = strictnessField.getSelectedItem();
 
-            // Special case "exact" strictness and hand it to our naive implementation:
-            if (strictness == IColorReplace.Strictness.EXACT) {
-                new NaiveColorReplace().replace(previewBuffer, srcColor, destColor, strictness, this::replaceComplete);
-            }
-            else {
-                // TODO create an instance of the actual color replacement handler
-                // TODO invoke it here:
-                // replacer.replace(previewBuffer, srcColor, destColor, strictness, this::replaceComplete);
-
-                // TODO remove this placeholder log:
-                getMessageUtil().getLogger().info(strictness + " color replacement is not yet implemented.");
-            }
+            // The intelligent implementation handles all strictness levels,
+            // EXACT included (it does the same full value match, but also
+            // preserves the pixel's alpha) - see its javadoc for details.
+            new IntelligentColorReplace().replace(previewBuffer, srcColor, destColor, strictness, this::replaceComplete);
         }
         finally {
             g.dispose();
