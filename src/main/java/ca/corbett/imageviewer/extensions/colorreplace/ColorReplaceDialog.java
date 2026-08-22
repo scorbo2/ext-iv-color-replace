@@ -12,7 +12,7 @@ import ca.corbett.forms.fields.ComboField;
 import ca.corbett.forms.fields.LabelField;
 import ca.corbett.forms.fields.PanelField;
 import ca.corbett.imageviewer.extensions.ImageViewerExtensionManager;
-import ca.corbett.imageviewer.extensions.colorreplace.impl.NaiveColorReplace;
+import ca.corbett.imageviewer.extensions.colorreplace.impl.IntelligentColorReplace;
 import ca.corbett.imageviewer.ui.MainWindow;
 
 import javax.swing.BorderFactory;
@@ -257,18 +257,10 @@ public class ColorReplaceDialog extends JDialog {
             Color destColor = replacementColorField.getColor();
             IColorReplace.Strictness strictness = strictnessField.getSelectedItem();
 
-            // Special case "exact" strictness and hand it to our naive implementation:
-            if (strictness == IColorReplace.Strictness.EXACT) {
-                new NaiveColorReplace().replace(previewBuffer, srcColor, destColor, strictness, this::replaceComplete);
-            }
-            else {
-                // TODO create an instance of the actual color replacement handler
-                // TODO invoke it here:
-                // replacer.replace(previewBuffer, srcColor, destColor, strictness, this::replaceComplete);
-
-                // TODO remove this placeholder log:
-                getMessageUtil().getLogger().info(strictness + " color replacement is not yet implemented.");
-            }
+            // The intelligent implementation handles all strictness levels,
+            // EXACT included (it does the same full value match, but also
+            // preserves the pixel's alpha) - see its javadoc for details.
+            new IntelligentColorReplace().replace(previewBuffer, srcColor, destColor, strictness, this::replaceComplete);
         }
         finally {
             g.dispose();
