@@ -12,6 +12,7 @@ import ca.corbett.forms.fields.ComboField;
 import ca.corbett.forms.fields.LabelField;
 import ca.corbett.forms.fields.PanelField;
 import ca.corbett.imageviewer.extensions.ImageViewerExtensionManager;
+import ca.corbett.imageviewer.extensions.colorreplace.impl.IntelligentColorReplace;
 import ca.corbett.imageviewer.extensions.colorreplace.impl.NaiveColorReplace;
 import ca.corbett.imageviewer.ui.MainWindow;
 
@@ -63,6 +64,12 @@ public class ColorReplaceDialog extends JDialog {
     private ColorField sourceColorField;
     private ColorField replacementColorField;
     private ComboField<IColorReplace.Strictness> strictnessField;
+
+    /**
+     * Stateless handler for non-exact color replacement: shades of the source color are mapped to
+     * corresponding shades of the target color (dark red becomes dark blue, not flat blue).
+     */
+    private final IColorReplace colorReplacer = new IntelligentColorReplace();
 
     /**
      * Creates a new ColorReplaceDialog based on the image represented by the given file.
@@ -262,12 +269,7 @@ public class ColorReplaceDialog extends JDialog {
                 new NaiveColorReplace().replace(previewBuffer, srcColor, destColor, strictness, this::replaceComplete);
             }
             else {
-                // TODO create an instance of the actual color replacement handler
-                // TODO invoke it here:
-                // replacer.replace(previewBuffer, srcColor, destColor, strictness, this::replaceComplete);
-
-                // TODO remove this placeholder log:
-                getMessageUtil().getLogger().info(strictness + " color replacement is not yet implemented.");
+                colorReplacer.replace(previewBuffer, srcColor, destColor, strictness, this::replaceComplete);
             }
         }
         finally {
