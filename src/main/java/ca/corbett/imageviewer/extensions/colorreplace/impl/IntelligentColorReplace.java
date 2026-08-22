@@ -227,7 +227,8 @@ public class IntelligentColorReplace implements IColorReplace {
         // target hue, damped by both colors' saturation so that near-achromatic
         // pixels don't drag the hue randomly (their hue is just noise).
         float hueWeight = Math.min(pixelHsb[1], sourceHsb[1]);
-        float newHue = targetHsb[0] + (pixelHsb[0] - sourceHsb[0]) * hueWeight;
+        float deltaHue = ((pixelHsb[0] - sourceHsb[0] + 540f) % 360f) - 180f; // signed shortest (-180..180)
+        float newHue = targetHsb[0] + deltaHue * hueWeight;
 
         float newSat;
         if (sourceHsb[1] <= ACHROMATIC_EPSILON) {
