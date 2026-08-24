@@ -71,6 +71,36 @@ cp target/ext-iv-color-replace-3.3.0.jar ~/.ImageViewer/extensions/
    **Cancel** (or press ESC) discards the edit. Pressing Enter prompts you to
    save and close.
 
+### Examples
+
+We'll start with an image of my motorcycle, which is blue:
+
+<img alt="Blue motorcycle" src="screenshots/01-original.jpg" width="480"/>
+
+From the ImageViewer main window, with this image selected, we can either choose
+"Color Replace" from the "Edit" menu, or right-click the image and choose "Color Replace" from the context menu.
+or hit "ctrl+shift+r" (the default shortcut, which can be changed in the preferences).
+This brings up the color replace dialog, where we see the original image with a control
+panel on the left side of the dialog:
+
+![Control panel](screenshots/02-controls.jpg)
+
+We can select the source color (the color to be replaced) by left-clicking anywhere on the image,
+or by clicking the "Source color" field and picking a color from the popup color chooser:
+
+![Source color chooser](screenshots/03-color-chooser.png)
+
+Let's click somewhere on the blue parts of the motorcycle. Next, we can select the replacement
+color by right-clicking anywhere on the image, or clicking the "Replacement color" field and picking
+a color from the popup color chooser. We can then select the "Strictness" setting to use.
+"Medium" or "Loose" tend to work best, but it will depend on the image in question, and what
+color you are trying to replace. Experiment until you find good results. Here are some
+examples of applying different colors to our motorcycle image:
+
+<img alt="Green motorcycle" src="screenshots/04-green.jpg" width="480"/>
+<img alt="Yellow motorcycle" src="screenshots/05-yellow.jpg" width="480"/>
+<img alt="Purple motorcycle" src="screenshots/06-purple.jpg" width="480"/>
+
 ### How the replacement works
 
 The replacement is done intelligently in HSB (hue / saturation / brightness)
