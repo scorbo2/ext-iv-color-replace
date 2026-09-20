@@ -67,9 +67,13 @@ cp target/ext-iv-color-replace-3.3.0.jar ~/.ImageViewer/extensions/
    | LOOSE  | Somewhat close pixels - reaches for dark and washed-out shades. Most aggressive. |
 
    The preview updates live as you change any option.
-6. **Save and close** overwrites the original image file with the result.
-   **Cancel** (or press ESC) discards the edit. Pressing Enter prompts you to
-   save and close.
+ 6. **Save and close** overwrites the original image file with the result.
+    **Save As...** saves the result to a different file of your choice, leaving
+    the original image untouched (you'll be prompted to confirm if the target
+    file already exists, and if you omit the file extension, the image is
+    saved as PNG). The dialog remembers the last directory you saved to,
+    so the next "Save As..." starts there. **Cancel** (or press ESC) discards
+    the edit. Pressing Enter prompts you to save and close.
 
 ### Examples
 
