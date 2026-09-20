@@ -47,7 +47,7 @@ class ColorReplaceDialogTest {
         // GIVEN a last-used directory that has since been deleted:
         File lastDirectory = tempDir.resolve("last-used").toFile();
         assertTrue(lastDirectory.mkdirs());
-        lastDirectory.delete();
+        assertTrue(lastDirectory.delete());
         // AND a source image whose directory does exist:
         File sourceFile = tempDir.resolve("source").resolve("image.png").toFile();
         assertTrue(sourceFile.getParentFile().mkdirs());
