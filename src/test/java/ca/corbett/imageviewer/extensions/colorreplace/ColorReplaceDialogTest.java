@@ -176,7 +176,7 @@ class ColorReplaceDialogTest {
         File result = ColorReplaceDialog.withDefaultExtension(file);
 
         // THEN ".png" is appended to the name:
-        assertEquals("/some/dir/photo.png", result.getPath());
+        assertEquals(new File("/some/dir", "photo.png").getPath(), result.getPath());
     }
 
     @Test
