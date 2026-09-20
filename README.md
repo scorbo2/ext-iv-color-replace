@@ -23,7 +23,7 @@ It's just that easy!
 ### Option 2: manual download and install
 
 You can manually download the extension jar:
-[ext-iv-color-replace-3.3.0.jar](https://www.corbett.ca/apps/ImageViewer/extensions/3.3/ext-iv-color-replace-3.3.0.jar)
+[ext-iv-color-replace-3.3.1.jar](https://www.corbett.ca/apps/ImageViewer/extensions/3.3/ext-iv-color-replace-3.3.1.jar)
 
 Save it to your ~/.ImageViewer/extensions directory and restart the application.
 
@@ -42,7 +42,7 @@ cd ext-iv-color-replace
 mvn clean package
 
 # Copy the result to extensions dir:
-cp target/ext-iv-color-replace-3.3.0.jar ~/.ImageViewer/extensions/
+cp target/ext-iv-color-replace-3.3.1.jar ~/.ImageViewer/extensions/
 ```
 
 ## Okay, it's installed, now how do I use it?

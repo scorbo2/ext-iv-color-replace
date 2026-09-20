@@ -1,7 +1,7 @@
 {
   "name": "Color replace",
   "author": "steve@corbett.ca",
-  "version": "3.3.0",
+  "version": "3.3.1",
   "targetAppName": "ImageViewer",
   "targetAppVersion": "3.3",
   "shortDescription": "Intelligently replaces a color in the image with another color.",
