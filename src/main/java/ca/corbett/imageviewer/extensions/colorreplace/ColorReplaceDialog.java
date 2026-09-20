@@ -18,8 +18,10 @@ import ca.corbett.imageviewer.ui.MainWindow;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JDialog;
+import javax.swing.JFileChooser;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -50,6 +52,14 @@ import java.util.logging.Logger;
  * @author <a href="https://github.com/scorbo2">scorbo2</a>
  */
 public class ColorReplaceDialog extends JDialog {
+
+    /**
+     * The directory last used when saving output via "Save As...".
+     * Deliberately static and in-memory only: it must survive the dialog being
+     * closed and re-opened (possibly for a different image), but it does not
+     * need to survive an application restart, so we keep no disk persistence.
+     */
+    private static File lastSaveAsDirectory;
 
     private MessageUtil messageUtil;
     private final KeyStrokeManager keyStrokeManager;
@@ -136,16 +146,7 @@ public class ColorReplaceDialog extends JDialog {
             targetGraphics = null;
 
             getMessageUtil().getLogger().log(Level.INFO, "Color replace: saving image {0}", srcFile.getAbsolutePath());
-            if (srcFile.getName().toLowerCase(Locale.ROOT).endsWith("png")) {
-                ImageUtil.savePngImage(originalImage, srcFile);
-            }
-            else if (srcFile.getName().toLowerCase(Locale.ROOT).endsWith("jpg") ||
-                    srcFile.getName().toLowerCase(Locale.ROOT).endsWith("jpeg")) {
-                ImageUtil.saveImage(originalImage, srcFile);
-            }
-            else {
-                throw new IOException("Unsupported image format; must be png or jpeg image.");
-            }
+            saveImageTo(originalImage, srcFile);
 
             // Force thumbnail regeneration for this image:
             ImageViewerExtensionManager.getInstance().removeThumbnail(srcFile);
@@ -167,6 +168,182 @@ public class ColorReplaceDialog extends JDialog {
                 targetGraphics.dispose();
             }
         }
+    }
+
+    /**
+     * Prompts the user for a target file and saves the current color replacement
+     * result there. Unlike saveChanges(), the source image on disk is NOT modified
+     * and the dialog does NOT close, so the user can keep tweaking the colors and
+     * "Save As..." as often as they like.
+     *
+     * The directory of the chosen target file is remembered in lastSaveAsDirectory,
+     * which is static, so the next "Save As..." (even from a fresh dialog instance)
+     * starts in that same directory.
+     */
+    private void saveAs() {
+        // if we're in a wonky state, I guess we're done here:
+        if (previewBuffer == null || originalImage == null) {
+            getMessageUtil().info("Nothing to save.");
+            return;
+        }
+
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Save As...");
+        fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        fileChooser.setApproveButtonText("Save");
+        fileChooser.setFileFilter(new FileNameExtensionFilter("PNG or JPEG image", "png", "jpg", "jpeg"));
+
+        File startingDirectory = resolveInitialSaveAsDirectory(lastSaveAsDirectory, srcFile);
+        fileChooser.setCurrentDirectory(startingDirectory);
+        // Pre-select the source image's name: a sensible default if the user
+        // merely picks a new directory and hits "Save" without renaming:
+        fileChooser.setSelectedFile(new File(startingDirectory, srcFile.getName()));
+
+        if (fileChooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return; // user canceled the file chooser
+        }
+
+        File targetFile = withDefaultExtension(fileChooser.getSelectedFile().getAbsoluteFile());
+        boolean overwriteExisting = targetFile.exists();
+
+        if (overwriteExisting) {
+            if (getMessageUtil().askYesNo("Confirm",
+                                          "\"" + targetFile.getName() + "\" already exists.\nOverwrite it?")
+                    != MessageUtil.YES) {
+                return;
+            }
+        }
+
+        try {
+            saveImageTo(previewBuffer, targetFile);
+            getMessageUtil().getLogger().log(Level.INFO, "Color replace: saved image {0}", targetFile.getAbsolutePath());
+
+            // Remember where we saved, so the next "Save As..." starts there:
+            lastSaveAsDirectory = targetFile.getParentFile();
+
+            // If we overwrote an existing file, drop its now-stale thumbnail cache entry:
+            if (overwriteExisting) {
+                ImageViewerExtensionManager.getInstance().removeThumbnail(targetFile);
+            }
+
+            // Edge case: the user picked the source file itself as the target.
+            // The main window is currently displaying it, so refresh it exactly
+            // as an in-place save would:
+            if (targetFile.equals(srcFile.getAbsoluteFile())) {
+                MainWindow.getInstance().reloadCurrentImage();
+            }
+
+            getMessageUtil().info("Image saved to " + targetFile.getAbsolutePath());
+        }
+        catch (IOException ioe) {
+            getMessageUtil().error("Problem saving image: " + ioe.getMessage(), ioe);
+        }
+    }
+
+    /**
+     * Determines the starting directory for the "Save As..." file chooser:
+     * the last directory used for "Save As...", if it still exists; otherwise,
+     * the directory containing the source image (the natural default on first use).
+     *
+     * @param lastDirectory The last directory used for "Save As...", or null if there isn't one yet.
+     * @param sourceFile    The image currently being edited.
+     * @return A directory to start the file chooser in. Never null.
+     */
+    static File resolveInitialSaveAsDirectory(File lastDirectory, File sourceFile) {
+        if (lastDirectory != null && lastDirectory.exists()) {
+            return lastDirectory;
+        }
+        File sourceDirectory = sourceFile.getAbsoluteFile().getParentFile();
+        if (sourceDirectory != null && sourceDirectory.exists()) {
+            return sourceDirectory;
+        }
+        // Last resort: the user's home directory. We shouldn't normally get here,
+        // but the file chooser must have a valid starting directory:
+        return new File(System.getProperty("user.home"));
+    }
+
+    /**
+     * Saves the given image to the given file, choosing the writer based on the
+     * file's extension. Only PNG and JPEG files are supported, which are the same
+     * formats this dialog can be launched on.
+     *
+     * @param image      The image to save.
+     * @param targetFile The file to save it to.
+     * @throws IOException If the file extension is not a supported image format,
+     *                     or if the image cannot be written.
+     */
+    static void saveImageTo(BufferedImage image, File targetFile) throws IOException {
+        String fileName = targetFile.getName().toLowerCase(Locale.ROOT);
+        if (fileName.endsWith("png")) {
+            ImageUtil.savePngImage(image, targetFile);
+        }
+        else if (fileName.endsWith("jpg") || fileName.endsWith("jpeg")) {
+            saveJpegImage(image, targetFile);
+        }
+        else {
+            throw new IOException("Unsupported image format; must be png or jpeg image.");
+        }
+    }
+
+    /**
+     * Saves the given image to the given file in JPEG format. Since JPEG has no
+     * alpha channel, an image with alpha is first flattened over a white
+     * background. This matters in practice: our preview buffer is always
+     * TYPE_INT_ARGB, and the JPEG writer flatly refuses to encode it otherwise.
+     *
+     * @param image      The image to save.
+     * @param targetFile The file to save it to.
+     * @throws IOException If the image cannot be written.
+     */
+    static void saveJpegImage(BufferedImage image, File targetFile) throws IOException {
+        BufferedImage imageToSave = image;
+        if (image.getColorModel().hasAlpha()) {
+            imageToSave = flattenToRgb(image);
+        }
+        ImageUtil.saveImage(imageToSave, targetFile);
+    }
+
+    /**
+     * Flattens the given image onto a new opaque RGB buffer, compositing any
+     * alpha over a white background. White is the conventional flattening
+     * background (it's what GIMP, ImageMagick, and friends use by default).
+     *
+     * @param source The image to flatten. May or may not have an alpha channel.
+     * @return A new TYPE_3BYTE_BGR image with no alpha channel.
+     */
+    private static BufferedImage flattenToRgb(BufferedImage source) {
+        BufferedImage rgb = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
+        Graphics2D g = rgb.createGraphics();
+        try {
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, rgb.getWidth(), rgb.getHeight());
+            g.drawImage(source, 0, 0, null);
+        }
+        finally {
+            g.dispose();
+        }
+        return rgb;
+    }
+
+    /**
+     * Returns a File with ".png" appended if the given file's name has no extension,
+     * otherwise returns the file unchanged. JFileChooser does not append an extension
+     * for us when the user types a bare name into the file name field, and
+     * saveImageTo() would reject such a name, so we default to PNG (the first
+     * extension in the file chooser's filter). A name with an unrecognized
+     * extension is left alone; saveImageTo() will report it as unsupported.
+     *
+     * @param file The file chosen by the user.
+     * @return The file, possibly with a ".png" extension appended. Never null.
+     */
+    static File withDefaultExtension(File file) {
+        String name = file.getName();
+        // A dot at index 0 (e.g. ".hidden") or no dot at all means "no extension":
+        if (name.lastIndexOf('.') > 0) {
+            return file;
+        }
+        String parent = file.getParent();
+        return parent == null ? new File(name + ".png") : new File(parent, name + ".png");
     }
 
     private FormPanel buildControlPanel() {
@@ -212,6 +389,13 @@ public class ColorReplaceDialog extends JDialog {
         gbc.gridy++;
         button = new JButton("Save and close");
         button.addActionListener(e -> saveChanges());
+        button.setPreferredSize(new Dimension(150, 24));
+        panel.add(button, gbc);
+
+        gbc.gridy++;
+        button = new JButton("Save As...");
+        button.addActionListener(e -> saveAs());
+        button.setToolTipText("Save the result to a different file, leaving the original image untouched.");
         button.setPreferredSize(new Dimension(150, 24));
         panel.add(button, gbc);
 
